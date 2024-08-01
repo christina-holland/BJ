@@ -2,144 +2,133 @@ package com.blackjack;
 
 public class Game {
 
-    // Variables needed for managing the game state
-    private Deck deck;           // The deck of cards used for the game
-    private Deck discarded;     // The deck where discarded cards are placed
+    // Declare variables needed for Game class
+    private Deck deck, discarded;
+    private Dealer dealer;
+    private Player player;
+    private int wins, losses, ties;
 
-    private Dealer dealer;      // The dealer of the game
-    private Player player;      // The player participating in the game
-    private int wins;           // Number of wins by the player
-    private int losses;         // Number of losses by the player
-    private int ties;         // Number of ties in the game
-
-    // Default constructor initializes a new game
-    public Game(){
+    public Game() {
         // Create a new deck with 52 cards
         deck = new Deck(true);
-        // Create a new empty deck for discarded cards
+        // Create a new empty deck
         discarded = new Deck();
-
-        // Initialize the dealer and player
+        // Create the People
         dealer = new Dealer();
         player = new Player();
-
-        // Shuffle the deck to start the game
+        // Shuffle the deck and start the first round
         deck.shuffle();
-        // Begin the first round of the game
         startRound();
     }
 
-    // Method to start a new round of the game
-    private void startRound(){
+    private void startRound() {
+        // Check if player has sufficient balance to continue
+        if (player.getBalance() <= 0) {
+            System.out.println("Game over! You have no money left.");
+            System.exit(0);
+        }
 
-        // If it's not the first round, display scores and return cards to the discarded deck
-        if(wins > 0 || losses > 0 || ties > 0){
+        // If this isn't the first time, display the user's score and put their cards back in the deck
+        if (wins > 0 || losses > 0 || ties > 0) {
             System.out.println();
-            System.out.println("Starting Next Round.");
-            System.out.println("Wins: " + wins + " Losses: " + losses + " Ties: " + ties);
-            // Move all cards from dealer's and player's hands to the discarded deck
+            System.out.println("Starting Next Round... Wins: " + wins + " Losses: " + losses + " Ties: " + ties);
             dealer.getHand().discardHandToDeck(discarded);
             player.getHand().discardHandToDeck(discarded);
         }
 
-        // Ensure there are at least 4 cards left in the deck; reload from discarded if needed
-        if(deck.cardsLeft() < 4){
+        // Check to make sure the deck has at least 4 cards left
+        if (deck.cardsLeft() < 4) {
             deck.reloadDeckFromDiscard(discarded);
         }
 
-        // Deal two cards to the dealer
+        // Give the dealer two cards
         dealer.getHand().takeCardFromDeck(deck);
         dealer.getHand().takeCardFromDeck(deck);
 
-        // Deal two cards to the player
+        // Give the player two cards
         player.getHand().takeCardFromDeck(deck);
         player.getHand().takeCardFromDeck(deck);
 
-        // Display the dealer's hand with one card face down
+        // Show the dealer's hand with one card face down
         dealer.printFirstHand();
 
-        // Display the player's hand
+        // Show the player's hand
         player.printHand();
 
-        // Check if the dealer has Blackjack
-        if(dealer.hasBlackjack()){
-            // Show the dealer's hand if they have Blackjack
+        // Check if dealer has Blackjack to start
+        if (dealer.hasBlackjack()) {
+            // Show the dealer has Blackjack
             dealer.printHand();
 
             // Check if the player also has Blackjack
-            if(player.hasBlackjack()){
-                // Both have Blackjack, so it's a tie
-                System.out.println("You both have 21 - you tie");
+            if (player.hasBlackjack()) {
+                // End the round with a tie
+                System.out.println("You both have 21 - Tie.");
                 ties++;
-                startRound(); // Start a new round
-            }
-            else{
-                // Dealer has Blackjack, player loses
-                System.out.println("Dealer has BlackJack - you lose");
+                player.adjustBalance(false); // No win or loss for tie
+                startRound();
+            } else {
+                System.out.println("Dealer has Blackjack. You lose.");
                 dealer.printHand();
                 losses++;
-                startRound(); // Start a new round
+                player.adjustBalance(false); // Player loses
+                startRound();
             }
         }
 
-        // If we reach this point, the dealer did not have Blackjack
-        // Check if the player has Blackjack
-        if(player.hasBlackjack()){
-            // Player has Blackjack and wins
-            System.out.println("You have Blackjack - you win");
+        // Check if player has Blackjack to start
+        if (player.hasBlackjack()) {
+            System.out.println("You have Blackjack! You win!");
             wins++;
-            startRound(); // Start a new round
+            player.adjustBalance(true); // Player wins
+            startRound();
         }
 
-        // Allow the player to make a decision (hit or stand)
+        // Let the player decide what to do next
         player.makeDecision(deck, discarded);
 
-        // Check if the player has busted (gone over 21)
-        if(player.getHand().calculatedValue() > 21){
+        // Check if they busted
+        if (player.getHand().calculatedValue() > 21) {
             System.out.println("You have gone over 21.");
             losses++;
-            startRound(); // Start a new round
+            player.adjustBalance(false); // Player loses
+            startRound();
         }
 
-        // Dealer's turn to play
+        // Now it's the dealer's turn
         dealer.printHand();
-        // Dealer hits until they reach at least 17
-        while(dealer.getHand().calculatedValue() < 17){
+        while (dealer.getHand().calculatedValue() < 17) {
             dealer.hit(deck, discarded);
         }
 
-        // Determine the outcome of the round
-        if(dealer.getHand().calculatedValue() > 21){
-            // Dealer busts, player wins
+        // Check who wins
+        if (dealer.getHand().calculatedValue() > 21) {
             System.out.println("Dealer busts");
             wins++;
-        }
-        else if(dealer.getHand().calculatedValue() > player.getHand().calculatedValue()){
-            // Dealer's hand is higher, player loses
-            System.out.println("You lose");
+            player.adjustBalance(true); // Player wins
+        } else if (dealer.getHand().calculatedValue() > player.getHand().calculatedValue()) {
+            System.out.println("You lose.");
             losses++;
-        }
-        else if(player.getHand().calculatedValue() > dealer.getHand().calculatedValue()){
-            // Player's hand is higher, player wins
-            System.out.println("You win");
+            player.adjustBalance(false); // Player loses
+        } else if (player.getHand().calculatedValue() > dealer.getHand().calculatedValue()) {
+            System.out.println("You win.");
             wins++;
-        }
-        else{
-            // Hands are equal, it's a tie
-            System.out.println("Tie");
+            player.adjustBalance(true); // Player wins
+        } else {
+            System.out.println("Tie.");
             ties++;
+            player.adjustBalance(false); // No win or loss for tie
         }
 
         // Start a new round
         startRound();
     }
 
-    // Utility method to pause the game for 2 seconds
-    public static void pause(){
+    public static void pause() {
         try {
-            Thread.sleep(2000); // Pause for 2000 milliseconds (2 seconds)
+            Thread.sleep(2000);
         } catch (InterruptedException e) {
-            e.printStackTrace(); // Print stack trace if interrupted
+            e.printStackTrace();
         }
     }
 }
